@@ -1,0 +1,6 @@
+.env
+gotato
+
+.nova/
+.vscode/
+.idea/
