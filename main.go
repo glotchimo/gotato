@@ -8,15 +8,17 @@ import (
 )
 
 var (
-	CHANNEL      string = ""
-	USERNAME     string = ""
-	PASSWORD     string = ""
-	ACCESS_TOKEN string = ""
-	TIMER_MIN    int    = 30
-	TIMER_MAX    int    = 120
-	TIMEOUT      int    = 30
-	REWARD       int    = 100
-	COOLDOWN     int    = 300
+	CHANNEL       string
+	USERNAME      string
+	CLIENT_ID     string
+	CLIENT_SECRET string
+	ACCESS_TOKEN  string
+	REFRESH_TOKEN string
+	TIMER_MIN     int = 30
+	TIMER_MAX     int = 120
+	TIMEOUT       int = 30
+	REWARD        int = 100
+	COOLDOWN      int = 300
 )
 
 func init() {
@@ -28,8 +30,12 @@ func init() {
 		panic("username cannot be blank")
 	}
 
-	if PASSWORD := os.Getenv("GOTATO_PASSWORD"); PASSWORD == "" {
-		panic("password cannot be blank")
+	if CLIENT_ID = os.Getenv("GOTATO_CLIENT_ID"); CLIENT_ID == "" {
+		panic("client ID cannot be blank")
+	}
+
+	if CLIENT_SECRET = os.Getenv("GOTATO_CLIENT_SECRET"); CLIENT_SECRET == "" {
+		panic("client secret cannot be blank")
 	}
 
 	if timerMin, err := strconv.Atoi(os.Getenv("GOTATO_TIMER_MIN")); err == nil {
@@ -54,9 +60,12 @@ func init() {
 }
 
 func main() {
-	// oauth authorization flow
-	ACCESS_TOKEN = oauth()
+	// Authenticate with Twitch
+	if err := authorize(); err != nil {
+		log.Fatal("error authenticating:", err)
+	}
 
+	// Summarize game settings
 	log.Println("playing gotato with the following settings:")
 	log.Println("  channel:", CHANNEL)
 	log.Println("  minimum time:", TIMER_MIN)
