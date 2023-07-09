@@ -56,7 +56,7 @@ func authorize() error {
 	REFRESH_TOKEN = token.RefreshToken
 	log.Println("token received")
 	log.Println("expires in", time.Duration(time.Duration(token.ExpiresIn)*time.Second).String())
-	fmt.Println()
+	log.Println()
 
 	close(codeChan)
 	return nil
