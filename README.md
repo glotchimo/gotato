@@ -9,9 +9,10 @@ The following are available:
 
 - `GOTATO_CHANNEL`: The channel to connect to
 - `GOTATO_USERNAME`: Twitch username to connect with
-- `GOTATO_PASSWORD`: Twitch password/token to connect with
+- `GOTATO_CLIENT_ID`: Twitch app client ID
+- `GOTATO_CLIENT_SECRET`: Twitch app client secret
 - `GOTATO_TIMER_MIN`: Minimum game length in seconds
-- `GOTATO_TIMER_MAX`: Maximim game length in seconds
+- `GOTATO_TIMER_MAX`: Maximum game length in seconds
 - `GOTATO_TIMEOUT`: Loss timeout in seconds
 - `GOTATO_REWARD`: Channel points rewarded to winner
 - `GOTATO_COOLDOWN`: Cooldown between games in seconds
