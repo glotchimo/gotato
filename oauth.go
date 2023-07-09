@@ -6,30 +6,33 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
-)
-
-var (
-	ClientId     string
-	ClientSecret string
+	"time"
 )
 
 const (
-	RedirectURI = "http://localhost:8080/callback"
-	AuthURL     = "https://id.twitch.tv/oauth2/authorize"
-	TokenURL    = "https://id.twitch.tv/oauth2/token"
+	REDIRECT_URI = "http://localhost:8080/callback"
+	AUTH_URL     = "https://id.twitch.tv/oauth2/authorize"
+	TOKEN_URL    = "https://id.twitch.tv/oauth2/token"
 )
 
-var codeChan = make(chan string)
+var codeChan = make(chan string, 1)
 
-func oauth() string {
-	ClientId = os.Getenv("GOTATO_CLIENT_ID")
-	ClientSecret = os.Getenv("GOTATO_CLIENT_SECRET")
-	// Step 1: Redirect the user to the Twitch authorization page
-	authURL := fmt.Sprintf("%s?client_id=%s&redirect_uri=%s&response_type=code&scope=channel:read:subscriptions", AuthURL, ClientId, RedirectURI)
-	fmt.Printf("Please visit the following URL to authorize the application:\n%s\n\n", authURL)
+type tokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+}
 
-	// Step 2: Set up a temporary HTTP server to receive the authorization callback
+func authorize() error {
+	// Redirect the user to the Twitch authorization page
+	fmt.Printf("Visit this link to authorize:\n%s\n", fmt.Sprintf(
+		"%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s",
+		AUTH_URL,
+		CLIENT_ID,
+		REDIRECT_URI,
+		url.QueryEscape("chat:read chat:edit")))
+
+	// Set up a temporary HTTP server to receive the authorization callback
 	http.HandleFunc("/callback", handleCallback)
 	go func() {
 		if err := http.ListenAndServe("localhost:8080", nil); err != nil {
@@ -37,25 +40,23 @@ func oauth() string {
 		}
 	}()
 
-	// Step 3: Wait for the authorization code and exchange it for an access token
-	fmt.Print("Enter the authorization code: ")
-	authorizationCode := <-codeChan
+	// Wait for the authorization code and exchange it for an access token
+	authCode := <-codeChan
 
-	token, err := exchangeAuthorizationCode(authorizationCode)
+	token, err := getToken(authCode)
 	if err != nil {
-		log.Fatal("Failed to exchange authorization code for token:", err)
+		return fmt.Errorf("error exchanging auth code for token: %w", err)
+	} else if token.AccessToken == "" {
+		return fmt.Errorf("error getting token: empty")
 	}
 
-	// check if we received a token
-	if token.AccessToken == "" {
-		log.Fatal("Failed to exchange authorization code for token: empty token")
-	}
+	ACCESS_TOKEN = token.AccessToken
+	REFRESH_TOKEN = token.RefreshToken
+	fmt.Println("token expires in", time.Duration(time.Duration(token.ExpiresIn)*time.Second).String())
+	fmt.Println()
 
-	fmt.Println("\nAccess Token:", token.AccessToken)
-	fmt.Println("Expires In:", token.ExpiresIn)
-	fmt.Println("Refresh Token:", token.RefreshToken)
-
-	return token.AccessToken
+	close(codeChan)
+	return nil
 }
 
 func handleCallback(w http.ResponseWriter, r *http.Request) {
@@ -66,38 +67,32 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 			log.Println("Failed to write response:", err)
 		}
 	} else {
-		_, err := w.Write([]byte("Failed to receive authorization code."))
-		if err != nil {
+		if _, err := w.Write([]byte("Failed to receive authorization code.")); err != nil {
 			log.Println("Failed to write response:", err)
 		}
 	}
+
 	go func() { codeChan <- code }()
 }
 
-func exchangeAuthorizationCode(authorizationCode string) (*OAuthToken, error) {
+func getToken(authCode string) (*tokenResponse, error) {
 	data := url.Values{}
-	data.Set("client_id", ClientId)
-	data.Set("client_secret", ClientSecret)
-	data.Set("code", authorizationCode)
+	data.Set("client_id", CLIENT_ID)
+	data.Set("client_secret", CLIENT_SECRET)
+	data.Set("code", authCode)
 	data.Set("grant_type", "authorization_code")
-	data.Set("redirect_uri", RedirectURI)
+	data.Set("redirect_uri", REDIRECT_URI)
 
-	resp, err := http.PostForm(TokenURL, data)
+	resp, err := http.PostForm(TOKEN_URL, data)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	token := &OAuthToken{}
-	if err := json.NewDecoder(resp.Body).Decode(token); err != nil {
+	var token tokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
 		return nil, err
 	}
 
-	return token, nil
-}
-
-type OAuthToken struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    int    `json:"expires_in"`
+	return &token, nil
 }
