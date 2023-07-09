@@ -1,8 +1,11 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 )
 
 func loadEnv() {
@@ -22,12 +25,16 @@ func loadEnv() {
 		panic("client secret cannot be blank")
 	}
 
-	if timerMin, err := strconv.Atoi(os.Getenv("GOTATO_TIMER_MIN")); err == nil {
-		TIMER_MIN = timerMin
+	if timer, err := strconv.Atoi(os.Getenv("GOTATO_JOIN_TIMER")); err == nil {
+		JOIN_TIMER = timer
 	}
 
-	if timerMax, err := strconv.Atoi(os.Getenv("GOTATO_TIMER_MAX")); err == nil {
-		TIMER_MAX = timerMax
+	if timerMin, err := strconv.Atoi(os.Getenv("GOTATO_GAME_TIMER_MIN")); err == nil {
+		GAME_TIMER_MIN = timerMin
+	}
+
+	if timerMax, err := strconv.Atoi(os.Getenv("GOTATO_GAME_TIMER_MAX")); err == nil {
+		GAME_TIMER_MAX = timerMax
 	}
 
 	if timeout, err := strconv.Atoi(os.Getenv("GOTATO_TIMEOUT")); err == nil {
@@ -40,5 +47,27 @@ func loadEnv() {
 
 	if cooldown, err := strconv.Atoi(os.Getenv("GOTATO_COOLDOWN")); err == nil {
 		COOLDOWN = cooldown
+	}
+}
+
+func deslug(s string) (string, string, error) {
+	var event, value string
+	split := strings.Split(s, ":")
+	if len(split) != 2 {
+		return event, value, errors.New("invalid slug")
+	}
+
+	event = split[0]
+	value = split[1]
+	return event, value, nil
+}
+
+func timer(t int, done chan bool) {
+	for {
+		time.Sleep(1 * time.Second)
+		t--
+		if t == 0 {
+			done <- true
+		}
 	}
 }

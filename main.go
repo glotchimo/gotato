@@ -18,11 +18,12 @@ var (
 	REFRESH_TOKEN string
 
 	// Game settings
-	TIMER_MIN int = 30
-	TIMER_MAX int = 120
-	TIMEOUT   int = 30
-	REWARD    int = 100
-	COOLDOWN  int = 300
+	JOIN_TIMER     int = 10
+	GAME_TIMER_MIN int = 30
+	GAME_TIMER_MAX int = 120
+	TIMEOUT        int = 30
+	REWARD         int = 100
+	COOLDOWN       int = 300
 
 	// Globally available Twitch IRC client
 	CLIENT *twitch.Client
@@ -39,8 +40,8 @@ func main() {
 	// Summarize game settings
 	log.Println("playing gotato with the following settings:")
 	log.Println("  channel:", CHANNEL)
-	log.Println("  minimum time:", TIMER_MIN)
-	log.Println("  maximum time:", TIMER_MAX)
+	log.Println("  minimum time:", GAME_TIMER_MIN)
+	log.Println("  maximum time:", GAME_TIMER_MAX)
 	log.Println("  loss timeout:", TIMEOUT)
 	log.Println("  win reward:", REWARD)
 	log.Println("  cooldown between games:", COOLDOWN)
