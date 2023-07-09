@@ -8,14 +8,15 @@ import (
 )
 
 var (
-	CHANNEL   string = ""
-	USERNAME  string = ""
-	PASSWORD  string = ""
-	TIMER_MIN int    = 30
-	TIMER_MAX int    = 120
-	TIMEOUT   int    = 30
-	REWARD    int    = 100
-	COOLDOWN  int    = 300
+	CHANNEL      string = ""
+	USERNAME     string = ""
+	PASSWORD     string = ""
+	ACCESS_TOKEN string = ""
+	TIMER_MIN    int    = 30
+	TIMER_MAX    int    = 120
+	TIMEOUT      int    = 30
+	REWARD       int    = 100
+	COOLDOWN     int    = 300
 )
 
 func init() {
@@ -53,6 +54,9 @@ func init() {
 }
 
 func main() {
+	// oauth authorization flow
+	ACCESS_TOKEN = oauth()
+
 	log.Println("playing gotato with the following settings:")
 	log.Println("  channel:", CHANNEL)
 	log.Println("  minimum time:", TIMER_MIN)
