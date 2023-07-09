@@ -24,6 +24,7 @@ func listen(events chan string, errors chan error) {
 
 	// Join channel and connect client (blocking)
 	client.Join(CHANNEL)
+	client.Say(CHANNEL, "gotato connected! Use !gotato to start a game")
 	if err := client.Connect(); err != nil {
 		errors <- fmt.Errorf("error connecting to channel: %w", err)
 	}
