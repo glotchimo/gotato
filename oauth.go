@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/pkg/browser"
 )
 
 const (
@@ -25,7 +27,7 @@ type tokenResponse struct {
 
 func authorize() error {
 	// Redirect the user to the Twitch authorization page
-	fmt.Printf("Visit this link to authorize:\n%s\n", fmt.Sprintf(
+	browser.OpenURL(fmt.Sprintf(
 		"%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s",
 		AUTH_URL,
 		CLIENT_ID,
@@ -52,7 +54,8 @@ func authorize() error {
 
 	ACCESS_TOKEN = token.AccessToken
 	REFRESH_TOKEN = token.RefreshToken
-	fmt.Println("token expires in", time.Duration(time.Duration(token.ExpiresIn)*time.Second).String())
+	log.Println("token received")
+	log.Println("expires in", time.Duration(time.Duration(token.ExpiresIn)*time.Second).String())
 	fmt.Println()
 
 	close(codeChan)
