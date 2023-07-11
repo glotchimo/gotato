@@ -19,6 +19,8 @@ func loop(events chan string, errors chan error) {
 
 waitPhase:
 	log.Println("in wait phase")
+
+	// Make sure state is clean
 	state.Reset()
 
 	CLIENT_IRC.Say(CHANNEL, "!gotato to start the game")
@@ -33,7 +35,6 @@ waitPhase:
 
 joinPhase:
 	log.Println("in join phase")
-	state.Reset()
 
 	joinPhaseDone := make(chan bool, 1)
 	go timer(JOIN_TIMER, joinPhaseDone)
@@ -84,7 +85,7 @@ gamePhase:
 	gamePhaseDone := make(chan bool, 1)
 	go timer(state.Timer, gamePhaseDone)
 
-	// Watch for subsequent resets or passes
+	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes!")
 	for {
 		select {
 		// Watch the chat for pass commands
