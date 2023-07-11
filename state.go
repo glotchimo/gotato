@@ -10,7 +10,18 @@ type State struct {
 	Holder       string
 	LastUpdate   time.Time
 	Participants []string
+	Aliases      map[string]string
 	Scores       map[string]int
+}
+
+func (s State) IsParticipant(id string) bool {
+	for _, p := range s.Participants {
+		if id == p {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *State) Pass() {
@@ -29,7 +40,7 @@ func (s *State) Pass() {
 	}
 
 	s.Holder = pool[selection]
-	CLIENT.Say(CHANNEL, s.Holder+" has the potato!")
+	CLIENT_IRC.Say(CHANNEL, s.Aliases[s.Holder]+" has the potato!")
 }
 
 func (s *State) Reset() {
