@@ -2,6 +2,7 @@
 
 .env
 gotato
+*.db
 
 .nova/
 .vscode/

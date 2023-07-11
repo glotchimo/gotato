@@ -8,6 +8,7 @@ import (
 
 	"github.com/gempir/go-twitch-irc/v4"
 	"github.com/nicklaw5/helix/v2"
+	"go.etcd.io/bbolt"
 )
 
 var (
@@ -35,34 +36,40 @@ var (
 	CLIENT_IRC *twitch.Client
 	CLIENT_API *helix.Client
 
+	// Points database
+	POINTS_DB *bbolt.DB
+
 	// Message templates
-	WIN_MSG  string = "%s held the potato for %s and wins EZ Clap +%d"
-	LOSS_MSG string = "%s lost to potato OMEGALUL -%s"
+	POINTS_MSG string = "%s has %d points"
+	WIN_MSG    string = "%s held the potato for %s and wins EZ Clap +%d (now has %d)"
+	LOSS_MSG   string = "%s lost to potato OMEGALUL -%s"
 )
 
 func init() {
 	loadEnv()
-
-	if err := authIRC(); err != nil {
-		log.Fatal("error authenticating irc: ", err)
-	}
-
-	if err := authAPI(); err != nil {
-		log.Fatal("error authenticating api: ", err)
-	}
 }
 
 func main() {
-	// Summarize game settings
-	log.Println("playing gotato with the following settings:")
-	log.Println("  channel:", CHANNEL)
-	log.Println("  join time:", JOIN_TIMER)
-	log.Println("  minimum game time:", GAME_TIMER_MIN)
-	log.Println("  maximum game time:", GAME_TIMER_MAX)
-	log.Println("  loss timeout:", TIMEOUT)
-	log.Println("  win reward:", REWARD)
-	log.Println("  cooldown between games:", COOLDOWN)
-	log.Println()
+	// Open points database
+	if db, err := bbolt.Open("points.db", 0666, nil); err != nil {
+		log.Fatal("error opening points database: ", err)
+	} else {
+		POINTS_DB = db
+	}
+	defer POINTS_DB.Close()
+	log.Println("opened points database")
+
+	// Run OAuth flow and build IRC client
+	if err := authIRC(); err != nil {
+		log.Fatal("error authenticating irc: ", err)
+	}
+	log.Println("created IRC client")
+
+	// Build API client
+	if err := authAPI(); err != nil {
+		log.Fatal("error authenticating api: ", err)
+	}
+	log.Println("created API client")
 
 	// Initialize event and error channels
 	events := make(chan string)
@@ -90,7 +97,7 @@ func main() {
 		CLIENT_IRC.Say(CHANNEL, "gotato disconnected")
 		time.Sleep(1 * time.Second)
 
-		// Clean up the channels and exit
+		// Clean up and exit
 		close(events)
 		close(errors)
 		os.Exit(0)
