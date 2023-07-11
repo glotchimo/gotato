@@ -37,7 +37,7 @@ joinPhase:
 	log.Println("in join phase")
 
 	joinPhaseDone := make(chan bool, 1)
-	go runTimer(JOIN_TIMER, joinPhaseDone)
+	go wait(JOIN_TIMER, joinPhaseDone)
 
 	CLIENT_IRC.Say(CHANNEL, "!join to join hot potato")
 	for {
@@ -83,7 +83,7 @@ gamePhase:
 	state.Pass()
 
 	gamePhaseDone := make(chan bool, 1)
-	go runTimer(state.Timer, gamePhaseDone)
+	go wait(state.Timer, gamePhaseDone)
 
 	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes!")
 	for {
@@ -125,6 +125,12 @@ gamePhase:
 					}
 				}
 
+				// Reward the winner
+				points, err := reward(winner)
+				if err != nil {
+					errors <- err
+				}
+
 				// Timeout the loser
 				if err := timeout(state.Holder); err != nil {
 					errors <- err
@@ -136,6 +142,7 @@ gamePhase:
 					state.Aliases[winner],
 					(time.Duration(topScore)*time.Second).String(),
 					REWARD,
+					points,
 					state.Aliases[state.Holder],
 					(time.Duration(TIMEOUT)*time.Second).String(),
 				))
@@ -148,7 +155,30 @@ gamePhase:
 coolPhase:
 	log.Println("in cool phase")
 
+	coolPhaseDone := make(chan bool, 1)
+	go wait(COOLDOWN, coolPhaseDone)
+
 	// Wait for the duration of the cooldown setting
-	time.Sleep(time.Duration(COOLDOWN) * time.Second)
-	goto waitPhase
+	for {
+		select {
+		// Watch for point requests
+		case event := <-events:
+			// Handle points commands
+			t, id, _, err := deslug(event)
+			if err == nil && t == "points" {
+				points, err := getPoints(id)
+				if err != nil {
+					errors <- err
+				}
+
+				CLIENT_IRC.Say(CHANNEL, fmt.Sprintf(POINTS_MSG, state.Aliases[id], points))
+			}
+
+		// Reset to the wait phase once the cooldown's done
+		case done := <-coolPhaseDone:
+			if done {
+				goto waitPhase
+			}
+		}
+	}
 }

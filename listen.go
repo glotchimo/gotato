@@ -28,6 +28,8 @@ func listen(events chan string, errors chan error) {
 			events <- "pass:" + m.User.ID + ":" + m.User.Name
 		case "!join":
 			events <- "join:" + m.User.ID + ":" + m.User.Name
+		case "!points":
+			events <- "points:" + m.User.ID + ":" + m.User.Name
 		case "!reset":
 			events <- "reset:" + m.User.ID + ":" + m.User.Name
 
