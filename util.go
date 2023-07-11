@@ -9,6 +9,10 @@ import (
 )
 
 func loadEnv() {
+	if verbose, err := strconv.ParseBool(os.Getenv("VERBOSE")); err == nil {
+		VERBOSE = verbose
+	}
+
 	if CHANNEL = os.Getenv("GOTATO_CHANNEL"); CHANNEL == "" {
 		panic("channel cannot be blank")
 	}
@@ -50,16 +54,17 @@ func loadEnv() {
 	}
 }
 
-func deslug(s string) (string, string, error) {
-	var event, value string
+func deslug(s string) (string, string, string, error) {
+	var t, id, name string
 	split := strings.Split(s, ":")
-	if len(split) != 2 {
-		return event, value, errors.New("invalid slug")
+	if len(split) != 3 {
+		return t, id, name, errors.New("invalid slug")
 	}
 
-	event = split[0]
-	value = split[1]
-	return event, value, nil
+	t = split[0]
+	id = split[1]
+	name = split[2]
+	return t, id, name, nil
 }
 
 func timer(t int, done chan bool) {
