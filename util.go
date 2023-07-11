@@ -67,7 +67,7 @@ func deslug(s string) (string, string, string, error) {
 	return t, id, name, nil
 }
 
-func timer(t int, done chan bool) {
+func runTimer(t int, done chan bool) {
 	for {
 		time.Sleep(1 * time.Second)
 		t--

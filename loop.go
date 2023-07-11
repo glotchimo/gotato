@@ -37,7 +37,7 @@ joinPhase:
 	log.Println("in join phase")
 
 	joinPhaseDone := make(chan bool, 1)
-	go timer(JOIN_TIMER, joinPhaseDone)
+	go runTimer(JOIN_TIMER, joinPhaseDone)
 
 	CLIENT_IRC.Say(CHANNEL, "!join to join hot potato")
 	for {
@@ -83,7 +83,7 @@ gamePhase:
 	state.Pass()
 
 	gamePhaseDone := make(chan bool, 1)
-	go timer(state.Timer, gamePhaseDone)
+	go runTimer(state.Timer, gamePhaseDone)
 
 	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes!")
 	for {
