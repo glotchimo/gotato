@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math/rand"
 	"time"
 )
@@ -41,6 +42,7 @@ func (s *State) Pass() {
 
 	s.Holder = pool[selection]
 	CLIENT_IRC.Say(CHANNEL, s.Aliases[s.Holder]+" has the potato!")
+	log.Println("passed potato:", s.Holder)
 }
 
 func (s *State) Reset() {
