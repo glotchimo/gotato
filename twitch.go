@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"time"
+	"strings"
 
 	"github.com/nicklaw5/helix/v2"
 	"github.com/pkg/browser"
@@ -26,7 +26,7 @@ type tokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
-func authIRC() error {
+func authenticate() error {
 	// Redirect the user to the Twitch authorization page
 	browser.OpenURL(fmt.Sprintf(
 		"%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s",
@@ -55,7 +55,6 @@ func authIRC() error {
 
 	ACCESS_TOKEN = token.AccessToken
 	REFRESH_TOKEN = token.RefreshToken
-	log.Println("token received, expires in", time.Duration(time.Duration(token.ExpiresIn)*time.Second).String())
 
 	close(codeChan)
 	return nil
@@ -99,7 +98,38 @@ func getToken(authCode string) (*tokenResponse, error) {
 	return &token, nil
 }
 
-func authAPI() error {
+func refreshToken() error {
+	params := url.Values{}
+	params.Add("grant_type", `refresh_token`)
+	params.Add("refresh_token", REFRESH_TOKEN)
+	params.Add("client_id", CLIENT_ID)
+	params.Add("client_secret", CLIENT_SECRET)
+	body := strings.NewReader(params.Encode())
+
+	req, err := http.NewRequest("POST", "https://id.twitch.tv/oauth2/token", body)
+	if err != nil {
+		return fmt.Errorf("error building request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error doing request: %w", err)
+	}
+	defer res.Body.Close()
+
+	var token tokenResponse
+	if err := json.NewDecoder(res.Body).Decode(&token); err != nil {
+		return err
+	}
+
+	ACCESS_TOKEN = token.AccessToken
+	REFRESH_TOKEN = token.RefreshToken
+
+	return nil
+}
+
+func createAPIClient() error {
 	client, err := helix.NewClient(&helix.Options{
 		ClientID:        CLIENT_ID,
 		UserAccessToken: ACCESS_TOKEN,
