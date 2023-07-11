@@ -2,41 +2,56 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/gempir/go-twitch-irc/v4"
 )
 
 func listen(events chan string, errors chan error) {
 	// Initialize client with callbacks for game calls and connection issues
-	CLIENT = twitch.NewClient(USERNAME, "oauth:"+ACCESS_TOKEN)
+	CLIENT_IRC = twitch.NewClient(USERNAME, "oauth:"+ACCESS_TOKEN)
 
 	// Watch messages (PrivateMessage = any message in the channel)
-	CLIENT.OnPrivateMessage(func(m twitch.PrivateMessage) {
-		if m.Message == "!gotato" {
+	CLIENT_IRC.OnPrivateMessage(func(m twitch.PrivateMessage) {
+		if VERBOSE {
+			log.Println(m)
+		}
+
+		switch strings.TrimSpace(m.Message) {
+		// Commands
+		case "!gotato":
 			events <- "start"
-		} else if m.Message == "!pass" {
-			events <- "pass:" + m.User.ID
-		} else if m.Message == "!join" {
-			events <- "join:" + m.User.ID
-		} else if m.Message == "!reset" {
-			events <- "reset:" + m.User.Name
+		case "!pass":
+			fallthrough
+		case "!toss":
+			events <- "pass:" + m.User.ID + ":" + m.User.Name
+		case "!join":
+			events <- "join:" + m.User.ID + ":" + m.User.Name
+		case "!reset":
+			events <- "reset:" + m.User.ID + ":" + m.User.Name
+
+		// Special
+		case "gotato connected":
+			if m.User.Name == USERNAME {
+				BROADCASTER_ID = m.User.ID
+			}
 		}
 	})
 
 	// Watch for notices (i.e. login failures)
-	CLIENT.OnNoticeMessage(func(m twitch.NoticeMessage) {
-		errors <- fmt.Errorf(m.Message)
-	})
+	CLIENT_IRC.OnNoticeMessage(func(m twitch.NoticeMessage) {
+		if VERBOSE {
+			log.Println(m)
+		}
 
-	// Watch for timeouts
-	CLIENT.OnClearChatMessage(func(m twitch.ClearChatMessage) {
-		return
+		errors <- fmt.Errorf("error in notice callback: %s", m.Message)
 	})
 
 	// Join channel and connect client (blocking)
-	CLIENT.Join(CHANNEL)
-	CLIENT.Say(CHANNEL, "gotato connected")
-	if err := CLIENT.Connect(); err != nil {
+	CLIENT_IRC.Join(CHANNEL)
+	CLIENT_IRC.Say(CHANNEL, "gotato connected")
+	if err := CLIENT_IRC.Connect(); err != nil {
 		errors <- fmt.Errorf("error connecting to channel: %w", err)
 	}
 }
