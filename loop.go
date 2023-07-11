@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -12,6 +13,7 @@ func loop(events chan string, errors chan error) {
 		Holder:       "",
 		LastUpdate:   time.Now(),
 		Participants: []string{},
+		Aliases:      map[string]string{},
 		Scores:       map[string]int{},
 	}
 
@@ -19,7 +21,7 @@ waitPhase:
 	log.Println("in wait phase")
 	state.Reset()
 
-	CLIENT.Say(CHANNEL, "!gotato to start the game")
+	CLIENT_IRC.Say(CHANNEL, "!gotato to start the game")
 	for event := range events {
 		if event != "start" {
 			log.Println("non-start event received, skipping")
@@ -34,16 +36,15 @@ joinPhase:
 	state.Reset()
 
 	joinPhaseDone := make(chan bool, 1)
-	joinTimer := JOIN_TIMER
-	go timer(joinTimer, joinPhaseDone)
+	go timer(JOIN_TIMER, joinPhaseDone)
 
-	CLIENT.Say(CHANNEL, "!join to join hot potato")
+	CLIENT_IRC.Say(CHANNEL, "!join to join hot potato")
 	for {
 		select {
 		// Watch the chat for join commands
 		case event := <-events:
 			// Split out event type and value (invalid = no-op)
-			t, v, err := deslug(event)
+			t, id, name, err := deslug(event)
 			if err != nil {
 				log.Println("no-op received")
 				continue
@@ -56,14 +57,15 @@ joinPhase:
 			}
 
 			// Register the issuer
-			state.Participants = append(state.Participants, v)
-			log.Println("added participant:", v)
+			state.Participants = append(state.Participants, id)
+			state.Aliases[id] = name
+			log.Println("added participant:", id)
 
 		// Move forward to the game phase when the timer runs out
 		case done := <-joinPhaseDone:
 			if done {
 				if len(state.Participants) < 2 {
-					CLIENT.Say(CHANNEL, "not enough participants :(")
+					CLIENT_IRC.Say(CHANNEL, "not enough participants :(")
 					goto waitPhase
 				}
 
@@ -76,36 +78,76 @@ joinPhase:
 gamePhase:
 	log.Println("in game phase")
 
-	// Start the game by passing to a random player
+	// Start the game by passing to a random player and starting the timer
 	state.Pass()
 
+	gamePhaseDone := make(chan bool, 1)
+	go timer(state.Timer, gamePhaseDone)
+
 	// Watch for subsequent resets or passes
-	for event := range events {
-		// Split out event type and value (invalid = no-op)
-		t, v, err := deslug(event)
-		if err != nil {
-			log.Println("no-op received")
-			log.Println()
-			continue
+	for {
+		select {
+		// Watch the chat for pass commands
+		case event := <-events:
+			// Split out event type and value (invalid = no-op)
+			t, id, name, err := deslug(event)
+			if err != nil {
+				log.Println("no-op received")
+				log.Println()
+				continue
+			}
+
+			// Handle resets, skip anything else that isn't a pass
+			if t == "reset" && name == USERNAME {
+				log.Println("reset received, initiating join phase")
+				goto joinPhase
+			} else if t != "pass" || !state.IsParticipant(id) {
+				log.Println("non-pass event received, skipping")
+				continue
+			}
+
+			// Handle scoring and passing
+			state.Scores[state.Holder] = int(time.Since(state.LastUpdate).Seconds())
+			state.Pass()
+			state.LastUpdate = time.Now()
+
+		// Handle end game and start cooldown
+		case done := <-gamePhaseDone:
+			if done {
+				// Get highest score/winner ID
+				var topScore int
+				var winner string
+				for id, score := range state.Scores {
+					if score > topScore && id != state.Holder {
+						winner = id
+						topScore = score
+					}
+				}
+
+				// Timeout the loser
+				if err := timeout(state.Holder); err != nil {
+					errors <- err
+				}
+
+				// Send end game message
+				CLIENT_IRC.Say(CHANNEL, fmt.Sprintf(
+					WIN_MSG+" | "+LOSS_MSG,
+					state.Aliases[winner],
+					(time.Duration(topScore)*time.Second).String(),
+					REWARD,
+					state.Aliases[state.Holder],
+					(time.Duration(TIMEOUT)*time.Second).String(),
+				))
+
+				goto coolPhase
+			}
 		}
-
-		// Handle resets, skip anything else that isn't a pass
-		if t == "reset" && v == USERNAME {
-			log.Println("reset received, initiating join phase")
-			goto joinPhase
-		} else if t != "pass" {
-			log.Println("non-pass event received, skipping")
-			continue
-		}
-
-		// Handle scoring and passing
-		state.Scores[state.Holder] = int(time.Since(state.LastUpdate).Seconds())
-		state.Pass()
-
-		// Send update messages
-		state.LastUpdate = time.Now()
-		log.Println("state updated:", state)
 	}
 
+coolPhase:
+	log.Println("in cool phase")
+
+	// Wait for the duration of the cooldown setting
+	time.Sleep(time.Duration(COOLDOWN) * time.Second)
 	goto waitPhase
 }
