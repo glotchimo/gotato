@@ -36,16 +36,14 @@ waitPhase:
 joinPhase:
 	log.Println("in join phase")
 
-	joinPhaseDone := make(chan bool, 1)
-	go wait(JOIN_TIMER, joinPhaseDone)
-
+	joinTimer := time.NewTimer(time.Duration(JOIN_TIMER) * time.Second)
 	CLIENT_IRC.Say(CHANNEL, "!join to join hot potato")
 	for {
 		select {
 		// Watch the chat for join commands
 		case event := <-events:
 			// Split out event type and value (invalid = no-op)
-			t, id, name, err := deslug(event)
+			t, id, name, err := parseEvent(event)
 			if err != nil {
 				log.Println("no-op received")
 				continue
@@ -63,35 +61,28 @@ joinPhase:
 			log.Println("added participant:", id)
 
 		// Move forward to the game phase when the timer runs out
-		case done := <-joinPhaseDone:
-			if done {
-				if len(state.Participants) < 2 {
-					CLIENT_IRC.Say(CHANNEL, "not enough participants :(")
-					goto waitPhase
-				}
-
-				close(joinPhaseDone)
-				goto gamePhase
+		case <-joinTimer.C:
+			if len(state.Participants) < 2 {
+				CLIENT_IRC.Say(CHANNEL, "not enough participants :(")
+				goto waitPhase
 			}
+
+			goto gamePhase
 		}
 	}
 
 gamePhase:
 	log.Println("in game phase")
 
-	// Start the game by passing to a random player and starting the timer
-	state.Pass()
-
-	gamePhaseDone := make(chan bool, 1)
-	go wait(state.Timer, gamePhaseDone)
-
+	gameTimer := time.NewTimer(time.Duration(state.Timer) * time.Second)
 	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes!")
+	state.Pass()
 	for {
 		select {
 		// Watch the chat for pass commands
 		case event := <-events:
 			// Split out event type and value (invalid = no-op)
-			t, id, name, err := deslug(event)
+			t, id, name, err := parseEvent(event)
 			if err != nil {
 				log.Println("no-op received")
 				log.Println()
@@ -113,58 +104,53 @@ gamePhase:
 			state.LastUpdate = time.Now()
 
 		// Handle end game and start cooldown
-		case done := <-gamePhaseDone:
-			if done {
-				// Get highest score/winner ID
-				var topScore int
-				var winner string
-				for id, score := range state.Scores {
-					if score > topScore && id != state.Holder {
-						winner = id
-						topScore = score
-					}
+		case <-gameTimer.C:
+			// Get highest score/winner ID
+			var topScore int
+			var winner string
+			for id, score := range state.Scores {
+				if score > topScore && id != state.Holder {
+					winner = id
+					topScore = score
 				}
-
-				// Reward the winner
-				points, err := reward(winner)
-				if err != nil {
-					errors <- err
-				}
-
-				// Timeout the loser
-				if err := timeout(state.Holder); err != nil {
-					errors <- err
-				}
-
-				// Send end game message
-				CLIENT_IRC.Say(CHANNEL, fmt.Sprintf(
-					WIN_MSG+" | "+LOSS_MSG,
-					state.Aliases[winner],
-					(time.Duration(topScore)*time.Second).String(),
-					REWARD,
-					points,
-					state.Aliases[state.Holder],
-					(time.Duration(TIMEOUT)*time.Second).String(),
-				))
-
-				goto coolPhase
 			}
+
+			// Reward the winner
+			points, err := reward(winner)
+			if err != nil {
+				errors <- err
+			}
+
+			// Timeout the loser
+			if err := timeout(state.Holder); err != nil {
+				errors <- err
+			}
+
+			// Send end game message
+			CLIENT_IRC.Say(CHANNEL, fmt.Sprintf(
+				WIN_MSG+" | "+LOSS_MSG,
+				state.Aliases[winner],
+				(time.Duration(topScore)*time.Second).String(),
+				REWARD,
+				points,
+				state.Aliases[state.Holder],
+				(time.Duration(TIMEOUT)*time.Second).String(),
+			))
+
+			goto coolPhase
 		}
 	}
 
 coolPhase:
 	log.Println("in cool phase")
 
-	coolPhaseDone := make(chan bool, 1)
-	go wait(COOLDOWN, coolPhaseDone)
-
-	// Wait for the duration of the cooldown setting
+	coolTimer := time.NewTimer(time.Duration(COOLDOWN) * time.Second)
 	for {
 		select {
 		// Watch for point requests
 		case event := <-events:
 			// Handle points commands
-			t, id, _, err := deslug(event)
+			t, id, _, err := parseEvent(event)
 			if err == nil && t == "points" {
 				points, err := getPoints(id)
 				if err != nil {
@@ -175,10 +161,8 @@ coolPhase:
 			}
 
 		// Reset to the wait phase once the cooldown's done
-		case done := <-coolPhaseDone:
-			if done {
-				goto waitPhase
-			}
+		case <-coolTimer.C:
+			goto waitPhase
 		}
 	}
 }
