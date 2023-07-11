@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/nicklaw5/helix/v2"
 	"github.com/pkg/browser"
 )
 
@@ -25,14 +26,14 @@ type tokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
-func authorize() error {
+func authIRC() error {
 	// Redirect the user to the Twitch authorization page
 	browser.OpenURL(fmt.Sprintf(
 		"%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s",
 		AUTH_URL,
 		CLIENT_ID,
 		REDIRECT_URI,
-		url.QueryEscape("chat:read chat:edit")))
+		url.QueryEscape("chat:read chat:edit moderator:manage:banned_users")))
 
 	// Set up a temporary HTTP server to receive the authorization callback
 	http.HandleFunc("/callback", handleCallback)
@@ -98,4 +99,33 @@ func getToken(authCode string) (*tokenResponse, error) {
 	}
 
 	return &token, nil
+}
+
+func authAPI() error {
+	client, err := helix.NewClient(&helix.Options{
+		ClientID:        CLIENT_ID,
+		UserAccessToken: ACCESS_TOKEN,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating client: %w", err)
+	}
+
+	CLIENT_API = client
+	return nil
+}
+
+func timeout(id string) error {
+	if _, err := CLIENT_API.BanUser(&helix.BanUserParams{
+		BroadcasterID: BROADCASTER_ID,
+		ModeratorId:   BROADCASTER_ID,
+		Body: helix.BanUserRequestBody{
+			UserId:   id,
+			Duration: TIMEOUT,
+			Reason:   "lost to potato",
+		},
+	}); err != nil {
+		return fmt.Errorf("error timing out loser: %w", err)
+	}
+
+	return nil
 }
