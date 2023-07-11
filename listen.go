@@ -33,7 +33,7 @@ func listen(events chan string, errors chan error) {
 		case "!reset":
 			events <- "reset:" + m.User.ID + ":" + m.User.Name
 
-		// Special
+		// Get broadcaster ID for API authentication from join message
 		case "gotato connected":
 			if m.User.Name == USERNAME {
 				BROADCASTER_ID = m.User.ID

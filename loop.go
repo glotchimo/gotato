@@ -20,9 +20,7 @@ func loop(events chan string, errors chan error) {
 waitPhase:
 	log.Println("in wait phase")
 
-	// Make sure state is clean
 	state.Reset()
-
 	CLIENT_IRC.Say(CHANNEL, "!gotato to start the game")
 	for event := range events {
 		if event != "start" {
