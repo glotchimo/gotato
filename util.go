@@ -54,9 +54,9 @@ func loadEnv() {
 	}
 }
 
-func deslug(s string) (string, string, string, error) {
+func parseEvent(e string) (string, string, string, error) {
 	var t, id, name string
-	split := strings.Split(s, ":")
+	split := strings.Split(e, ":")
 	if len(split) != 3 {
 		return t, id, name, errors.New("invalid slug")
 	}
@@ -65,14 +65,4 @@ func deslug(s string) (string, string, string, error) {
 	id = split[1]
 	name = split[2]
 	return t, id, name, nil
-}
-
-func wait(t int, done chan bool) {
-	for {
-		time.Sleep(1 * time.Second)
-		t--
-		if t == 0 {
-			done <- true
-		}
-	}
 }
