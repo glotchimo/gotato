@@ -33,7 +33,7 @@ var (
 	REWARD         int = 100
 	COOLDOWN       int = 120
 
-	// Globally available Twitch IRC/API clients
+	// Twitch IRC/API clients
 	CLIENT_IRC *twitch.Client
 	CLIENT_API *helix.Client
 
@@ -85,29 +85,39 @@ func main() {
 	log.Println("sending no-op")
 	events <- ""
 
-	// Wait for token refresh signals, errors, or interrupt signals
+	// Set up token refresh timer
 	authTimer := time.NewTimer(TOKEN_TTL)
 
+	// Set up interrupt signals channel
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
 	for {
 		select {
+		// Watch for token refresh signals
 		case <-authTimer.C:
 			if err := refreshToken(); err != nil {
 				log.Fatal("error authenticating irc: ", err)
 			}
 			authTimer.Reset(TOKEN_TTL)
 			log.Println("token refreshed")
+
+		// Watch for process errors
 		case err := <-errors:
 			log.Fatal("error received: ", err)
+
+		// Watch for manual interrupt signals
 		case sig := <-signals:
 			log.Println("received", sig.String())
 
 			CLIENT_IRC.Say(CHANNEL, "gotato disconnected")
+			CLIENT_IRC.Depart(CHANNEL)
 			time.Sleep(1 * time.Second)
 
 			// Clean up and exit
+			if err := CLIENT_IRC.Disconnect(); err != nil {
+				log.Println(err)
+			}
 			close(events)
 			close(errors)
 			os.Exit(0)
