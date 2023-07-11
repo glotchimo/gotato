@@ -55,9 +55,7 @@ func authIRC() error {
 
 	ACCESS_TOKEN = token.AccessToken
 	REFRESH_TOKEN = token.RefreshToken
-	log.Println("token received")
-	log.Println("expires in", time.Duration(time.Duration(token.ExpiresIn)*time.Second).String())
-	log.Println()
+	log.Println("token received, expires in", time.Duration(time.Duration(token.ExpiresIn)*time.Second).String())
 
 	close(codeChan)
 	return nil
