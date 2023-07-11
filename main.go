@@ -22,6 +22,7 @@ var (
 	CLIENT_SECRET  string
 	ACCESS_TOKEN   string
 	REFRESH_TOKEN  string
+	TOKEN_TTL      time.Duration = 3 * time.Hour
 	BROADCASTER_ID string
 
 	// Game settings
@@ -60,13 +61,13 @@ func main() {
 	log.Println("opened points database")
 
 	// Run OAuth flow and build IRC client
-	if err := authIRC(); err != nil {
+	if err := authenticate(); err != nil {
 		log.Fatal("error authenticating irc: ", err)
 	}
-	log.Println("created IRC client")
+	log.Println("authenticated with Twitch")
 
 	// Build API client
-	if err := authAPI(); err != nil {
+	if err := createAPIClient(); err != nil {
 		log.Fatal("error authenticating api: ", err)
 	}
 	log.Println("created API client")
@@ -84,22 +85,32 @@ func main() {
 	log.Println("sending no-op")
 	events <- ""
 
-	// Wait for errors or interrupt signals
+	// Wait for token refresh signals, errors, or interrupt signals
+	authTimer := time.NewTimer(TOKEN_TTL)
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
-	select {
-	case err := <-errors:
-		log.Fatal("error received: ", err)
-	case sig := <-signals:
-		log.Println("received", sig.String())
+	for {
+		select {
+		case <-authTimer.C:
+			if err := refreshToken(); err != nil {
+				log.Fatal("error authenticating irc: ", err)
+			}
+			authTimer.Reset(TOKEN_TTL)
+			log.Println("token refreshed")
+		case err := <-errors:
+			log.Fatal("error received: ", err)
+		case sig := <-signals:
+			log.Println("received", sig.String())
 
-		CLIENT_IRC.Say(CHANNEL, "gotato disconnected")
-		time.Sleep(1 * time.Second)
+			CLIENT_IRC.Say(CHANNEL, "gotato disconnected")
+			time.Sleep(1 * time.Second)
 
-		// Clean up and exit
-		close(events)
-		close(errors)
-		os.Exit(0)
+			// Clean up and exit
+			close(events)
+			close(errors)
+			os.Exit(0)
+		}
 	}
 }
