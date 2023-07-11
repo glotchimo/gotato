@@ -4,35 +4,51 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/gempir/go-twitch-irc/v4"
+	"github.com/nicklaw5/helix/v2"
 )
 
 var (
+	// Debug settings
+	VERBOSE bool
+
 	// Authorization settings
-	CHANNEL       string
-	USERNAME      string
-	CLIENT_ID     string
-	CLIENT_SECRET string
-	ACCESS_TOKEN  string
-	REFRESH_TOKEN string
+	CHANNEL        string
+	USERNAME       string
+	CLIENT_ID      string
+	CLIENT_SECRET  string
+	ACCESS_TOKEN   string
+	REFRESH_TOKEN  string
+	BROADCASTER_ID string
 
 	// Game settings
 	JOIN_TIMER     int = 10
 	GAME_TIMER_MIN int = 30
-	GAME_TIMER_MAX int = 120
+	GAME_TIMER_MAX int = 60
 	TIMEOUT        int = 30
 	REWARD         int = 100
-	COOLDOWN       int = 300
+	COOLDOWN       int = 120
 
-	// Globally available Twitch IRC client
-	CLIENT *twitch.Client
+	// Globally available Twitch IRC/API clients
+	CLIENT_IRC *twitch.Client
+	CLIENT_API *helix.Client
+
+	// Message templates
+	WIN_MSG  string = "%s held the potato for %s and wins EZ Clap +%d"
+	LOSS_MSG string = "%s lost to potato OMEGALUL -%s"
 )
 
 func init() {
 	loadEnv()
-	if err := authorize(); err != nil {
-		log.Fatal("error authenticating:", err)
+
+	if err := authIRC(); err != nil {
+		log.Fatal("error authenticating irc: ", err)
+	}
+
+	if err := authAPI(); err != nil {
+		log.Fatal("error authenticating api: ", err)
 	}
 }
 
@@ -40,8 +56,9 @@ func main() {
 	// Summarize game settings
 	log.Println("playing gotato with the following settings:")
 	log.Println("  channel:", CHANNEL)
-	log.Println("  minimum time:", GAME_TIMER_MIN)
-	log.Println("  maximum time:", GAME_TIMER_MAX)
+	log.Println("  join time:", JOIN_TIMER)
+	log.Println("  minimum game time:", GAME_TIMER_MIN)
+	log.Println("  maximum game time:", GAME_TIMER_MAX)
 	log.Println("  loss timeout:", TIMEOUT)
 	log.Println("  win reward:", REWARD)
 	log.Println("  cooldown between games:", COOLDOWN)
@@ -66,9 +83,12 @@ func main() {
 
 	select {
 	case err := <-errors:
-		log.Fatal("error received:", err)
+		log.Fatal("error received: ", err)
 	case sig := <-signals:
 		log.Println("received", sig.String())
+
+		CLIENT_IRC.Say(CHANNEL, "gotato disconnected")
+		time.Sleep(1 * time.Second)
 
 		// Clean up the channels and exit
 		close(events)
