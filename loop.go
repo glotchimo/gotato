@@ -23,7 +23,8 @@ waitPhase:
 	log.Println("in wait phase")
 
 	state.Reset()
-	CLIENT_IRC.Say(CHANNEL, "!gotato to start the game")
+	time.Sleep(1 * time.Second)
+	CLIENT_IRC.Say(CHANNEL, "Type !gotato to start the game!")
 	for e := range events {
 		if e.Type != StartEvent {
 			log.Println("non-start event received, skipping")
@@ -37,7 +38,7 @@ joinPhase:
 	log.Println("in join phase")
 
 	joinTimer := time.NewTimer(time.Duration(JOIN_DURATION) * time.Second)
-	CLIENT_IRC.Say(CHANNEL, "!join to join hot potato")
+	CLIENT_IRC.Say(CHANNEL, "Someone started a game of hot potato! Type !join or !bet <number> to join.")
 	for {
 		select {
 		// Watch the chat for join/bet commands
@@ -87,7 +88,7 @@ joinPhase:
 		// Move forward to the game phase when the timer runs out
 		case <-joinTimer.C:
 			if len(state.Participants) < 2 {
-				CLIENT_IRC.Say(CHANNEL, "Not enough participants :(")
+				CLIENT_IRC.Say(CHANNEL, "Not enough participants 😔")
 				goto waitPhase
 			}
 
@@ -112,7 +113,7 @@ gamePhase:
 
 	state.Pass()
 	gameTimer := time.NewTimer(time.Duration(state.Timer) * time.Second)
-	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes!")
+	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes! 🥔")
 	for {
 		select {
 		// Watch the chat for reset/pass commands
