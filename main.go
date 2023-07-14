@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -20,9 +21,9 @@ var (
 	POINTS_DB *bbolt.DB
 
 	// Message templates
-	POINTS_MSG string = "%s has %d points"
-	WIN_MSG    string = "%s held the potato for %s and wins EZ Clap +%d (now has %d)"
-	LOSS_MSG   string = "%s lost to potato OMEGALUL -%s"
+	POINTS_MSG string = "%s has %d points 💸"
+	WIN_MSG    string = "%s held the potato for %s and wins 😎 +%d (now has %d)"
+	LOSS_MSG   string = "%s lost to potato 💀 -%s"
 )
 
 func init() {
@@ -30,6 +31,22 @@ func init() {
 }
 
 func main() {
+	// Print out greeting
+	fmt.Println("🥔 Welcome to gotato, hot potato for Twitch chat.")
+	fmt.Println()
+	fmt.Println("🖥️  Please complete the authentication flow in your browser.")
+	fmt.Println()
+
+	// Run OAuth flow and build IRC client
+	if err := authenticate(); err != nil {
+		log.Fatal("error authenticating with Twitch: ", err)
+	}
+
+	fmt.Println("🚪 I'm in!")
+	fmt.Println()
+	fmt.Println("🚧 Now I just need to set up a few more things...")
+	fmt.Println()
+
 	// Open points database
 	if db, err := bbolt.Open("points.db", 0666, nil); err != nil {
 		log.Fatal("error opening points database: ", err)
@@ -37,39 +54,38 @@ func main() {
 		POINTS_DB = db
 	}
 	defer POINTS_DB.Close()
-	log.Println("opened points database")
 
-	// Run OAuth flow and build IRC client
-	if err := authenticate(); err != nil {
-		log.Fatal("error authenticating irc: ", err)
-	}
-	log.Println("authenticated with Twitch")
+	fmt.Println("✅ Points database loaded")
 
 	// Build API client
 	if err := createAPIClient(); err != nil {
 		log.Fatal("error authenticating api: ", err)
 	}
-	log.Println("created API client")
+
+	fmt.Println("✅ API client created")
 
 	// Initialize event and error channels
 	events := make(chan Event)
 	errors := make(chan error)
 
-	// Launch game loop and listener concurrently
-	log.Println("launching game loop and listener")
-	go loop(events, errors)
-	go listen(events, errors)
-
-	// Send a no-op to verify loop aliveness
-	log.Println("sending no-op")
-	events <- Event{}
-
 	// Set up token refresh timer
 	authTimer := time.NewTimer(TOKEN_TTL)
+
+	fmt.Println("✅ Auth token refresh timer set")
 
 	// Set up interrupt signals channel
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
+
+	fmt.Println("✅ Interrupt signal channel opened")
+
+	// Launch game loop and listener concurrently
+	fmt.Println()
+	fmt.Println("👍 All set, see you in chat!")
+	fmt.Println()
+
+	go loop(events, errors)
+	go listen(events, errors)
 
 	for {
 		select {

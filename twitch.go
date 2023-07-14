@@ -63,7 +63,7 @@ func authenticate() error {
 func handleCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code != "" {
-		_, err := w.Write([]byte("Authorization code received. You can close this tab now."))
+		_, err := w.Write([]byte("Got it! Head back to your terminal."))
 		if err != nil {
 			log.Println("Failed to write response:", err)
 		}
