@@ -120,8 +120,7 @@ gamePhase:
 			if e.Type == ResetEvent && e.Username == USERNAME {
 				log.Println("reset received, initiating join phase")
 				goto joinPhase
-			} else if e.Type != "pass" || !state.IsParticipant(e.UserID) {
-				log.Println("non-pass event received, skipping")
+			} else if e.Type != "pass" || !state.IsParticipant(e.UserID) || e.UserID != state.Holder {
 				continue
 			}
 
