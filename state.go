@@ -54,7 +54,6 @@ func (s *State) Reset() {
 		Holder:       "",
 		LastUpdate:   time.Now(),
 		Participants: []string{},
-		Aliases:      map[string]string{},
 		Reward:       REWARD_BASE,
 		Scores:       map[string]int{},
 	}
