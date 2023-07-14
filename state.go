@@ -13,6 +13,8 @@ type State struct {
 	Participants []string
 	Aliases      map[string]string
 	Scores       map[string]int
+	Bets         map[string]int
+	Reward       int
 }
 
 func (s State) IsParticipant(id string) bool {
@@ -47,10 +49,12 @@ func (s *State) Pass() {
 
 func (s *State) Reset() {
 	s = &State{
-		Timer:        rand.Intn(GAME_TIMER_MAX-GAME_TIMER_MIN+1) + GAME_TIMER_MIN,
+		Timer:        rand.Intn(GAME_DURATION_MAX-GAME_DURATION_MIN+1) + GAME_DURATION_MIN,
 		Holder:       "",
 		LastUpdate:   time.Now(),
 		Participants: []string{},
+		Aliases:      map[string]string{},
+		Reward:       REWARD_BASE,
 		Scores:       map[string]int{},
 	}
 }
