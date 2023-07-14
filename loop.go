@@ -7,14 +7,16 @@ import (
 	"time"
 )
 
-func loop(events chan string, errors chan error) {
+func loop(events chan Event, errors chan error) {
 	state := State{
-		Timer:        rand.Intn(GAME_TIMER_MAX-GAME_TIMER_MIN+1) + GAME_TIMER_MIN,
+		Timer:        rand.Intn(GAME_DURATION_MAX-GAME_DURATION_MIN+1) + GAME_DURATION_MIN,
 		Holder:       "",
 		LastUpdate:   time.Now(),
 		Participants: []string{},
 		Aliases:      map[string]string{},
 		Scores:       map[string]int{},
+		Bets:         map[string]int{},
+		Reward:       REWARD_BASE,
 	}
 
 waitPhase:
@@ -22,8 +24,8 @@ waitPhase:
 
 	state.Reset()
 	CLIENT_IRC.Say(CHANNEL, "!gotato to start the game")
-	for event := range events {
-		if event != "start" {
+	for e := range events {
+		if e.Type != StartEvent {
 			log.Println("non-start event received, skipping")
 			continue
 		}
@@ -34,34 +36,58 @@ waitPhase:
 joinPhase:
 	log.Println("in join phase")
 
-	joinTimer := time.NewTimer(time.Duration(JOIN_TIMER) * time.Second)
+	joinTimer := time.NewTimer(time.Duration(JOIN_DURATION) * time.Second)
 	CLIENT_IRC.Say(CHANNEL, "!join to join hot potato")
 	for {
 		select {
-		// Watch the chat for join commands
-		case event := <-events:
-			// Split out event type and value (invalid = no-op)
-			t, id, name, err := parseEvent(event)
-			if err != nil {
-				log.Println("no-op received")
-				continue
-			}
+		// Watch the chat for join/bet commands
+		case e := <-events:
+			if e.Type == JoinEvent || e.Type == BetEvent {
+				// Add user to participant list and alias map
+				state.Participants = append(state.Participants, e.UserID)
+				state.Aliases[e.UserID] = e.Username
 
-			// Skip anything that isn't a join command
-			if t != "join" {
-				log.Println("non-join event received, skipping")
-				continue
-			}
+				log.Println("added participant:", e.UserID)
 
-			// Register the issuer
-			state.Participants = append(state.Participants, id)
-			state.Aliases[id] = name
-			log.Println("added participant:", id)
+				// Handle bets
+				if e.Type == BetEvent {
+					// Don't allow multiple bets
+					for id := range state.Bets {
+						if e.UserID == id {
+							CLIENT_IRC.Say(CHANNEL, "You can't bet twice!")
+							continue
+						}
+					}
+
+					// Validate the bet command
+					bet, ok := e.Data.(int)
+					if !ok {
+						continue
+					}
+
+					// Get the users existing points
+					points, err := getPoints(e.UserID)
+					if err != nil {
+						errors <- fmt.Errorf("error getting points for bet: %w", err)
+					}
+
+					// If the user's trying to be more than they have, just use whatever's left
+					if bet > points {
+						bet = points
+					}
+					state.Reward += bet
+
+					// Register the bet for execution at game start
+					state.Bets[e.UserID] += bet
+
+					CLIENT_IRC.Say(CHANNEL, fmt.Sprintf("Reward pool is at %d!", state.Reward))
+				}
+			}
 
 		// Move forward to the game phase when the timer runs out
 		case <-joinTimer.C:
 			if len(state.Participants) < 2 {
-				CLIENT_IRC.Say(CHANNEL, "not enough participants :(")
+				CLIENT_IRC.Say(CHANNEL, "Not enough participants :(")
 				goto waitPhase
 			}
 
@@ -72,26 +98,29 @@ joinPhase:
 gamePhase:
 	log.Println("in game phase")
 
+	// Subtract bets from totals
+	for id, bet := range state.Bets {
+		points, err := getPoints(id)
+		if err != nil {
+			errors <- fmt.Errorf("error getting points for bet: %w", err)
+		}
+
+		if err := setPoints(id, points-bet); err != nil {
+			errors <- fmt.Errorf("error setting points after bet: %w", err)
+		}
+	}
+
+	state.Pass()
 	gameTimer := time.NewTimer(time.Duration(state.Timer) * time.Second)
 	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes!")
-	state.Pass()
 	for {
 		select {
-		// Watch the chat for pass commands
-		case event := <-events:
-			// Split out event type and value (invalid = no-op)
-			t, id, name, err := parseEvent(event)
-			if err != nil {
-				log.Println("no-op received")
-				log.Println()
-				continue
-			}
-
-			// Handle resets, skip anything else that isn't a pass
-			if t == "reset" && name == USERNAME {
+		// Watch the chat for reset/pass commands
+		case e := <-events:
+			if e.Type == ResetEvent && e.Username == USERNAME {
 				log.Println("reset received, initiating join phase")
 				goto joinPhase
-			} else if t != "pass" || !state.IsParticipant(id) {
+			} else if e.Type != "pass" || !state.IsParticipant(e.UserID) {
 				log.Println("non-pass event received, skipping")
 				continue
 			}
@@ -114,14 +143,19 @@ gamePhase:
 			}
 
 			// Reward the winner
-			points, err := reward(winner)
+			points, err := getPoints(winner)
 			if err != nil {
-				errors <- err
+				errors <- fmt.Errorf("error getting points for reward: %w", err)
+			}
+
+			points += state.Reward
+			if err := setPoints(winner, points); err != nil {
+				errors <- fmt.Errorf("error rewarding winner: %w", err)
 			}
 
 			// Timeout the loser
 			if err := timeout(state.Holder); err != nil {
-				errors <- err
+				errors <- fmt.Errorf("error timing out loser: %w", err)
 			}
 
 			// Send end game message
@@ -129,10 +163,10 @@ gamePhase:
 				WIN_MSG+" | "+LOSS_MSG,
 				state.Aliases[winner],
 				(time.Duration(topScore)*time.Second).String(),
-				REWARD,
+				REWARD_BASE,
 				points,
 				state.Aliases[state.Holder],
-				(time.Duration(TIMEOUT)*time.Second).String(),
+				(time.Duration(TIMEOUT_DURATION)*time.Second).String(),
 			))
 
 			goto coolPhase
@@ -142,20 +176,19 @@ gamePhase:
 coolPhase:
 	log.Println("in cool phase")
 
-	coolTimer := time.NewTimer(time.Duration(COOLDOWN) * time.Second)
+	coolTimer := time.NewTimer(time.Duration(COOLDOWN_DURATION) * time.Second)
+	CLIENT_IRC.Say(CHANNEL, "The potato's cooling down. Use !points to check your spoils!")
 	for {
 		select {
 		// Watch for point requests
-		case event := <-events:
-			// Handle points commands
-			t, id, _, err := parseEvent(event)
-			if err == nil && t == "points" {
-				points, err := getPoints(id)
+		case e := <-events:
+			if e.Type == PointsEvent {
+				points, err := getPoints(e.UserID)
 				if err != nil {
 					errors <- err
 				}
 
-				CLIENT_IRC.Say(CHANNEL, fmt.Sprintf(POINTS_MSG, state.Aliases[id], points))
+				CLIENT_IRC.Say(CHANNEL, fmt.Sprintf(POINTS_MSG, state.Aliases[e.UserID], points))
 			}
 
 		// Reset to the wait phase once the cooldown's done
