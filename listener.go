@@ -9,7 +9,7 @@ import (
 	"github.com/gempir/go-twitch-irc/v4"
 )
 
-func listen(events chan Event, errors chan error) {
+func listener(events chan Event, errors chan error) {
 	// Initialize client with callbacks for game calls and connection issues
 	CLIENT_IRC = twitch.NewClient(USERNAME, "oauth:"+ACCESS_TOKEN)
 

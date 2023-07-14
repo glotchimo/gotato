@@ -31,7 +31,6 @@ func init() {
 }
 
 func main() {
-	// Print out greeting
 	fmt.Println("🥔 Welcome to gotato, hot potato for Twitch chat.")
 	fmt.Println()
 	fmt.Println("🖥️  Please complete the authentication flow in your browser.")
@@ -84,8 +83,8 @@ func main() {
 	fmt.Println("🥔 All set, see you in chat! Remember to type !enable to enable timeouts.")
 	fmt.Println()
 
-	go loop(events, errors)
-	go listen(events, errors)
+	go game(events, errors)
+	go listener(events, errors)
 
 	for {
 		select {

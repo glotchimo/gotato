@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func loop(events chan Event, errors chan error) {
+func game(events chan Event, errors chan error) {
 	state := State{
 		Timer:        rand.Intn(GAME_DURATION_MAX-GAME_DURATION_MIN+1) + GAME_DURATION_MIN,
 		Holder:       "",
