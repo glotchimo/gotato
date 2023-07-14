@@ -12,27 +12,6 @@ import (
 )
 
 var (
-	// Debug settings
-	VERBOSE bool
-
-	// Authorization settings
-	CHANNEL        string
-	USERNAME       string
-	CLIENT_ID      string
-	CLIENT_SECRET  string
-	ACCESS_TOKEN   string
-	REFRESH_TOKEN  string
-	TOKEN_TTL      time.Duration = 3 * time.Hour
-	BROADCASTER_ID string
-
-	// Game settings
-	JOIN_TIMER     int = 10
-	GAME_TIMER_MIN int = 30
-	GAME_TIMER_MAX int = 60
-	TIMEOUT        int = 30
-	REWARD         int = 100
-	COOLDOWN       int = 120
-
 	// Twitch IRC/API clients
 	CLIENT_IRC *twitch.Client
 	CLIENT_API *helix.Client
@@ -73,7 +52,7 @@ func main() {
 	log.Println("created API client")
 
 	// Initialize event and error channels
-	events := make(chan string)
+	events := make(chan Event)
 	errors := make(chan error)
 
 	// Launch game loop and listener concurrently
@@ -83,7 +62,7 @@ func main() {
 
 	// Send a no-op to verify loop aliveness
 	log.Println("sending no-op")
-	events <- ""
+	events <- Event{}
 
 	// Set up token refresh timer
 	authTimer := time.NewTimer(TOKEN_TTL)
