@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/gempir/go-twitch-irc/v4"
 )
 
-func listen(events chan string, errors chan error) {
+func listen(events chan Event, errors chan error) {
 	// Initialize client with callbacks for game calls and connection issues
 	CLIENT_IRC = twitch.NewClient(USERNAME, "oauth:"+ACCESS_TOKEN)
 
@@ -18,26 +19,61 @@ func listen(events chan string, errors chan error) {
 			log.Println(m)
 		}
 
-		switch strings.TrimSpace(m.Message) {
+		components := strings.Split(m.Message, " ")
+		cmd := strings.TrimSpace(components[0])
+		switch cmd {
 		// Commands
 		case "!gotato":
-			events <- "start"
-		case "!pass":
-			fallthrough
-		case "!toss":
-			events <- "pass:" + m.User.ID + ":" + m.User.Name
+			events <- Event{Type: StartEvent}
 		case "!join":
-			events <- "join:" + m.User.ID + ":" + m.User.Name
+			events <- Event{
+				Type:     JoinEvent,
+				UserID:   m.User.ID,
+				Username: m.User.Name,
+			}
+		case "!bet", "!wager":
+			if len(components) != 2 {
+				return
+			}
+
+			value, err := strconv.Atoi(components[1])
+			if err != nil {
+				return
+			}
+
+			events <- Event{
+				Type:     BetEvent,
+				UserID:   m.User.ID,
+				Username: m.User.Name,
+				Data:     value,
+			}
+		case "!pass", "!toss":
+			events <- Event{
+				Type:     PassEvent,
+				UserID:   m.User.ID,
+				Username: m.User.Name,
+			}
 		case "!points":
-			events <- "points:" + m.User.ID + ":" + m.User.Name
+			events <- Event{
+				Type:     PointsEvent,
+				UserID:   m.User.ID,
+				Username: m.User.Name,
+			}
 		case "!reset":
-			events <- "reset:" + m.User.ID + ":" + m.User.Name
+			events <- Event{
+				Type:     ResetEvent,
+				UserID:   m.User.ID,
+				Username: m.User.Name,
+			}
 
 		// Get broadcaster ID for API authentication from join message
 		case "gotato connected":
 			if m.User.Name == USERNAME {
 				BROADCASTER_ID = m.User.ID
 			}
+
+		default:
+			events <- Event{}
 		}
 	})
 
@@ -52,7 +88,6 @@ func listen(events chan string, errors chan error) {
 
 	// Join channel and connect client (blocking)
 	CLIENT_IRC.Join(CHANNEL)
-	CLIENT_IRC.Say(CHANNEL, "gotato connected")
 	if err := CLIENT_IRC.Connect(); err != nil {
 		errors <- fmt.Errorf("error connecting to channel: %w", err)
 	}
