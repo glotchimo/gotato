@@ -38,3 +38,5 @@ complete that flow, the goroutines will boot up and you'll see a message in
 your chat from gotato!
 
 ## Design
+
+See `DESIGN.md` for design/implementation details.
