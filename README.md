@@ -35,7 +35,11 @@ Once those are set (or not if you want the defaults), just run the binary:
 This will open up a browser tab that will prompt you to authorize the app for
 chat read/write/ban permissions (ban for timeout punishments). Once you
 complete that flow, the goroutines will boot up and you'll see a message in
-your chat from gotato!
+your chat from gotato.
+
+**Note that the client user needs to type !enable in the chat to turn on
+timeouts.** This is necessary for the API client to receive the necessary
+user IDs to execute timeouts.
 
 ## Design
 

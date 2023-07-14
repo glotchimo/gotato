@@ -43,6 +43,7 @@ func (s *State) Pass() {
 	}
 
 	s.Holder = pool[selection]
+	s.LastUpdate = time.Now()
 	CLIENT_IRC.Say(CHANNEL, s.Aliases[s.Holder]+" has the potato!")
 	log.Println("passed potato:", s.Holder)
 }

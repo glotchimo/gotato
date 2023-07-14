@@ -23,7 +23,6 @@ waitPhase:
 	log.Println("in wait phase")
 
 	state.Reset()
-	time.Sleep(1 * time.Second)
 	CLIENT_IRC.Say(CHANNEL, "Type !gotato to start the game!")
 	for e := range events {
 		if e.Type != StartEvent {
@@ -129,7 +128,6 @@ gamePhase:
 			// Handle scoring and passing
 			state.Scores[state.Holder] = int(time.Since(state.LastUpdate).Seconds())
 			state.Pass()
-			state.LastUpdate = time.Now()
 
 		// Handle end game and start cooldown
 		case <-gameTimer.C:
@@ -164,8 +162,7 @@ gamePhase:
 				WIN_MSG+" | "+LOSS_MSG,
 				state.Aliases[winner],
 				(time.Duration(topScore)*time.Second).String(),
-				REWARD_BASE,
-				points,
+				state.Reward,
 				state.Aliases[state.Holder],
 				(time.Duration(TIMEOUT_DURATION)*time.Second).String(),
 			))

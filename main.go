@@ -22,7 +22,7 @@ var (
 
 	// Message templates
 	POINTS_MSG string = "%s has %d points 💸"
-	WIN_MSG    string = "%s held the potato for %s and wins 😎 +%d (now has %d)"
+	WIN_MSG    string = "%s held the potato for %s and wins 😎 +%d"
 	LOSS_MSG   string = "%s lost to potato 💀 -%s"
 )
 
@@ -81,7 +81,7 @@ func main() {
 
 	// Launch game loop and listener concurrently
 	fmt.Println()
-	fmt.Println("👍 All set, see you in chat!")
+	fmt.Println("🥔 All set, see you in chat! Remember to type !enable to enable timeouts.")
 	fmt.Println()
 
 	go loop(events, errors)

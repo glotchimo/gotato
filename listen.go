@@ -22,8 +22,13 @@ func listen(events chan Event, errors chan error) {
 		components := strings.Split(m.Message, " ")
 		cmd := strings.TrimSpace(components[0])
 		switch cmd {
+		case "!enable":
+			if m.User.Name == USERNAME {
+				BROADCASTER_ID = m.User.ID
+				log.Println("enabled timeouts")
+				return
+			}
 
-		// Commands
 		case "!gotato":
 			events <- Event{Type: StartEvent}
 
@@ -48,12 +53,6 @@ func listen(events chan Event, errors chan error) {
 
 		case "!reset":
 			events <- Event{Type: ResetEvent, UserID: m.User.ID, Username: m.User.Name}
-
-		// Get broadcaster ID for API authentication from join message
-		case "gotato connected":
-			if m.User.Name == USERNAME {
-				BROADCASTER_ID = m.User.ID
-			}
 		}
 	})
 
@@ -68,7 +67,6 @@ func listen(events chan Event, errors chan error) {
 
 	// Join channel and connect client (blocking)
 	CLIENT_IRC.Join(CHANNEL)
-	CLIENT_IRC.Say(CHANNEL, "gotato connected")
 	if err := CLIENT_IRC.Connect(); err != nil {
 		errors <- fmt.Errorf("error connecting to channel: %w", err)
 	}
