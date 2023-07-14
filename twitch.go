@@ -148,7 +148,7 @@ func timeout(id string) error {
 		ModeratorId:   BROADCASTER_ID,
 		Body: helix.BanUserRequestBody{
 			UserId:   id,
-			Duration: TIMEOUT,
+			Duration: TIMEOUT_DURATION,
 			Reason:   "lost to potato",
 		},
 	}); err != nil {
