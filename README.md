@@ -1,7 +1,7 @@
 # gotato
 
 A Twitch chatbot that allows chatters to play hot potato for points that they
-can then gamble (for fun and nothing else because Twitch doesn't allow bots
+can then gamble (for fun and non-channel points because Twitch doesn't allow bots
 to interact with channel points)!
 
 ## Usage
@@ -22,11 +22,12 @@ https://dev.twitch.tv/console*
 The third part, which is optional and just changes the existing defaults, are
 some more environment variables that tweak game options:
 
-- `GOTATO_DURATION_MIN`: Minimum game length in seconds
-- `GOTATO_DURATION_MAX`: Maximum game length in seconds
-- `GOTATO_TIMEOUT_DURATION`: Loss timeout in seconds
-- `GOTATO_REWARD_BASE`: Channel points rewarded to winner
-- `GOTATO_COOLDOWN_DURATION`: Cooldown between games in seconds
+- `GOTATO_JOIN_DURATION`: Join phase duration in seconds (default: 30)
+- `GOTATO_DURATION_MIN`: Minimum game length in seconds (default: 30)
+- `GOTATO_DURATION_MAX`: Maximum game length in seconds (default: 60)
+- `GOTATO_TIMEOUT_DURATION`: Loss timeout in seconds (default: 30)
+- `GOTATO_REWARD_BASE`: Base points rewarded to winner (default: 100)
+- `GOTATO_COOLDOWN_DURATION`: Cooldown between games in seconds (default: 120)
 
 Once those are set (or not if you want the defaults), just run the binary:
 
@@ -38,8 +39,8 @@ complete that flow, the goroutines will boot up and you'll see a message in
 your chat from gotato.
 
 **Note that the client user needs to type !enable in the chat to turn on
-timeouts.** This is necessary for the API client to receive the necessary
-user IDs to execute timeouts.
+timeouts and points whispers.** This is necessary for the API client to 
+receive the necessary user IDs to execute requests.
 
 ## Design
 
