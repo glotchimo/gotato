@@ -22,7 +22,7 @@ var (
 	BROADCASTER_ID string
 
 	// Game settings
-	JOIN_DURATION     int = 10
+	JOIN_DURATION     int = 30
 	GAME_DURATION_MIN int = 30
 	GAME_DURATION_MAX int = 60
 	TIMEOUT_DURATION  int = 30
