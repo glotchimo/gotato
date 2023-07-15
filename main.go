@@ -21,7 +21,7 @@ var (
 	POINTS_DB *bbolt.DB
 
 	// Message templates
-	POINTS_MSG string = "%s has %d points 💸"
+	POINTS_MSG string = "You have %d points 💸"
 	WIN_MSG    string = "%s held the potato for %s and wins 😎 +%d"
 	LOSS_MSG   string = "%s lost to potato 💀 -%s"
 )

@@ -25,12 +25,18 @@ waitPhase:
 	state.Reset()
 	CLIENT_IRC.Say(CHANNEL, "Type !gotato to start the game!")
 	for e := range events {
-		if e.Type != StartEvent {
-			log.Println("non-start event received, skipping")
-			continue
-		}
+		if e.Type == StartEvent {
+			goto joinPhase
+		} else if e.Type == PointsEvent {
+			points, err := getPoints(e.UserID)
+			if err != nil {
+				errors <- fmt.Errorf("error getting user points: %w", err)
+			}
 
-		goto joinPhase
+			if err := whisper(e.UserID, fmt.Sprintf(POINTS_MSG, points)); err != nil {
+				errors <- fmt.Errorf("error whispering points to user: %w", err)
+			}
+		}
 	}
 
 joinPhase:
@@ -182,10 +188,12 @@ coolPhase:
 			if e.Type == PointsEvent {
 				points, err := getPoints(e.UserID)
 				if err != nil {
-					errors <- err
+					errors <- fmt.Errorf("error getting user points: %w", err)
 				}
 
-				CLIENT_IRC.Say(CHANNEL, fmt.Sprintf(POINTS_MSG, state.Aliases[e.UserID], points))
+				if err := whisper(e.UserID, fmt.Sprintf(POINTS_MSG, points)); err != nil {
+					errors <- fmt.Errorf("error whispering points to user: %w", err)
+				}
 			}
 
 		// Reset to the wait phase once the cooldown's done

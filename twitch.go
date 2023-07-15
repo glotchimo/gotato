@@ -16,6 +16,7 @@ const (
 	REDIRECT_URI = "http://localhost:8080/callback"
 	AUTH_URL     = "https://id.twitch.tv/oauth2/authorize"
 	TOKEN_URL    = "https://id.twitch.tv/oauth2/token"
+	SCOPES       = "chat:read chat:edit moderator:manage:banned_users user:manage:whispers"
 )
 
 var codeChan = make(chan string, 1)
@@ -33,7 +34,7 @@ func authenticate() error {
 		AUTH_URL,
 		CLIENT_ID,
 		REDIRECT_URI,
-		url.QueryEscape("chat:read chat:edit moderator:manage:banned_users")))
+		url.QueryEscape(SCOPES)))
 
 	// Set up a temporary HTTP server to receive the authorization callback
 	http.HandleFunc("/callback", handleCallback)
@@ -153,6 +154,18 @@ func timeout(id string) error {
 		},
 	}); err != nil {
 		return fmt.Errorf("error timing out loser: %w", err)
+	}
+
+	return nil
+}
+
+func whisper(id string, message string) error {
+	if _, err := CLIENT_API.SendUserWhisper(&helix.SendUserWhisperParams{
+		FromUserID: BROADCASTER_ID,
+		ToUserID:   id,
+		Message:    message,
+	}); err != nil {
+		return fmt.Errorf("error sending whisper: %w", err)
 	}
 
 	return nil
