@@ -65,5 +65,52 @@ At that point, bets are only *registered*, not actually *spent*. The balances
 are updated immediately once the game phase starts and before the initial pass
 is executed.
 
-## Structure
+## Phases
 
+The game goroutine is broken into four phases: wait, join, game, and cooldown.
+Each handles events differently and contains the necessary functionality for
+progressing state.
+
+### Wait
+
+The wait phase is the default, inactive phase. During this phase, the only
+commands that can be issued are the starter `!gotato` command and the `!points`
+command which sends a whisper to the user with their points bank value. This
+phase runs indefinitely, and the `!gotato` command will move execution to the 
+join phase.
+
+### Join
+
+In the join phase, chatters can register in the participant pool and place
+bets with their earned points. Note that a bet is a join, but a join does not
+require a bet. For example, a user can issue `!join` and offer no bet, or they
+can issue `!bet 20` to join and register a bet of 20 points. These are wrapped
+together for brevity and ease of use.
+
+The join phase runs on a timer set by the `JOIN_DURATION` variable, which is
+30 seconds by default. Once that timer (which is a native `time.Timer`) has run
+out, execution will move to the game phase.
+
+### Game
+
+The game phase starts by applying registered bets to user point balances. Once
+that is complete, an initial randomized pass is executed and the loop begins.
+The only user able to progress state at this point is the one with the potato.
+By issuing a `!pass` command, the potato is passed to another player and their
+score is increased based on how many seconds they held the potato before
+passing it.
+
+The game phase also runs on a timer set randomly between the `GAME_DURATION_MIN`
+and `GAME_DURATION_MAX` variables. Once that timer runs out, the user holding
+the potato is timed out according to the `TIMEOUT_DURATION` variable, and the
+user with the highest score (i.e. the one who held the potato the longest)
+has the `state.Reward` value (i.e. the `REWARD_BASE` + all bets) added to their
+point balance.
+
+### Cooldown
+
+Once those actions have completed, execution is moved to the cooldown phase,
+the timer of which is set by the `COOLDOWN_DURATION` variable. The only command
+that can be issued in this phase is the `!points` command. Once the timer is
+depleted, execution moves back to the wait phase until another start command
+is issued.
