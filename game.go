@@ -23,7 +23,7 @@ waitPhase:
 	log.Println("in wait phase")
 
 	state.Reset()
-	CLIENT_IRC.Say(CHANNEL, "Type !gotato to start the game!")
+	CLIENT_IRC.Say(CHANNEL, "Type !gotato to start the game, or !points to see how much you can bet!")
 	for e := range events {
 		if e.Type == StartEvent {
 			goto joinPhase
@@ -116,9 +116,9 @@ gamePhase:
 		}
 	}
 
-	state.Pass()
 	gameTimer := time.NewTimer(time.Duration(state.Timer) * time.Second)
-	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes! 🥔")
+	CLIENT_IRC.Say(CHANNEL, "The potato's hot, here it comes! Use !pass or !toss to send it to another player!")
+	state.Pass()
 	for {
 		select {
 		// Watch the chat for reset/pass commands
@@ -131,7 +131,7 @@ gamePhase:
 			}
 
 			// Handle scoring and passing
-			state.Scores[state.Holder] = int(time.Since(state.LastUpdate).Seconds())
+			state.Scores[state.Holder] += int(time.Since(state.LastUpdate).Seconds())
 			state.Pass()
 
 		// Handle end game and start cooldown
