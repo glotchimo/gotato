@@ -4,6 +4,12 @@ A Twitch chatbot that allows chatters to play hot potato for points that they
 can then gamble (for fun and non-channel points because Twitch doesn't allow bots
 to interact with channel points)!
 
+**Note to readers:** the initial sprint of work on this project led to the
+creation of `gleam`, a Go framework for building command-driven Twitch bots.
+It's an improved version of some of the architecture seen here, so if you're
+interested in making bots, check it out! There's even a simple timer example
+in the repo that you can build and run to get an idea of how it works.
+
 ## Usage
 
 Building is of course the first priority, so assuming you have Go installed on
